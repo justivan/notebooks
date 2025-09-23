@@ -26,6 +26,19 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Project-specific data directories
+**/data/temp/
+**/data/temp/**
+**/data/output/*
+!**/data/output/.gitkeep
+**/data/backups/*
+!**/data/backups/.gitkeep
+**/data/logs/*
+!**/data/logs/.gitkeep
+
+# Keep input data versioned unless explicitly ignored in specific projects
+!**/data/input/.gitkeep
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.

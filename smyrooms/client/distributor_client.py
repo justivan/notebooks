@@ -1,7 +1,8 @@
 from typing import Any
 
 import requests
-from config import Config
+
+from smyrooms.config import Config
 
 
 class APIClient:
@@ -23,6 +24,7 @@ class APIClient:
         )
 
     def _request(self, method: str, endpoint: str, **kwargs) -> Any:
+        """Make an HTTP request to the API."""
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
         response = self.session.request(method, url, **kwargs)
         response.raise_for_status()
