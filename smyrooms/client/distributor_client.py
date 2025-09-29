@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import Any
+from typing import Self
 
 import requests
 
@@ -155,16 +157,27 @@ class ClientGroupAPI:
 
 class RuleFilter:
     """
-    Important: When using filtering methods with field paths that do not exist
-    in the rules, those rules will be excluded from the results. This means
-    that filtering by a non-existent or incorrect key path will typically
-    return an empty result set.
+    Interface for filtering rule lists with dot-notation field access.
+
+    Supports method chaining for complex filtering operations. Rules with
+    non-existent field paths are excluded from results.
+
+    Example:
+        filtered = (
+            RuleFilter(rules)
+            .where_field_in("tag", 1)
+            .where_list_contains_any("cli", 1, credential_ids)
+            .exclude_list_contains_any("lvl.prv", 1, provider_codes)
+            .to_list()
+        )
     """
 
-    def __init__(self, rules: list[dict]):
+    def __init__(self, rules: list[dict[str, Any]]) -> None:
         self.rules = rules
 
-    def _get_nested_value(self, rule: dict, path: str, default: Any = None) -> Any:
+    def _get_nested_value(
+        self, rule: dict[str, Any], path: str, default: Any = None
+    ) -> Any:
         """Get nested dictionary value safely using dot notation."""
         keys = path.split(".")
         obj = rule
@@ -175,22 +188,124 @@ class RuleFilter:
         except (KeyError, TypeError):
             return default
 
-    def where_field_in(self, path: str, values) -> "RuleFilter":
+    def where_field_in(self, path: str, values: Any) -> Self:
         """Filter where scalar field value is in values."""
         if not isinstance(values, (list, tuple, set)):
             values = [values]
 
         self.rules = [
-            rule for rule in self.rules if self._safe_get(rule, path) in values
+            rule for rule in self.rules if self._get_nested_value(rule, path) in values
         ]
         return self
 
-    def where_field_equals(self, path: str, values) -> "RuleFilter":
-        """Filter where scalar field value is equals value."""
+    def where_field_equals(self, path: str, value: Any) -> Self:
+        """Filter where scalar field value equals value."""
         self.rules = [
-            rule for rule in self.rules if self._safe_get(rule, path) == values
+            rule for rule in self.rules if self._get_nested_value(rule, path) == value
         ]
         return self
+
+    def where_list_contains_any(
+        self, path: str, type_value: int, values: list[Any]
+    ) -> Self:
+        """Filter where list field contains any of the values AND type matches."""
+        self.rules = [
+            rule
+            for rule in self.rules
+            if (
+                self._get_nested_value(rule, f"lvl.{path}.t") == type_value
+                and any(
+                    value in (self._get_nested_value(rule, f"lvl.{path}.l") or [])
+                    for value in values
+                )
+            )
+        ]
+        return self
+
+    def exclude_field_in(self, path: str, values: Any) -> Self:
+        """Exclude rules where scalar field value is in values."""
+        if not isinstance(values, (list, tuple, set)):
+            values = [values]
+
+        self.rules = [
+            rule
+            for rule in self.rules
+            if self._get_nested_value(rule, path) not in values
+        ]
+        return self
+
+    def exclude_field_equals(self, path: str, value: Any) -> Self:
+        """Exclude rules where scalar field value equals value."""
+        self.rules = [
+            rule for rule in self.rules if self._get_nested_value(rule, path) != value
+        ]
+        return self
+
+    def exclude_list_contains_any(
+        self, path: str, type_value: int, values: list[Any]
+    ) -> Self:
+        """Exclude rules where list field contains any values AND type matches."""
+        self.rules = [
+            rule
+            for rule in self.rules
+            if not (
+                self._get_nested_value(rule, f"lvl.{path}.t") == type_value
+                and any(
+                    v in (self._get_nested_value(rule, f"lvl.{path}.l") or [])
+                    for v in values
+                )
+            )
+        ]
+        return self
+
+    def where_date_range_overlaps(
+        self, path: str, start_date: str, end_date: str
+    ) -> Self:
+        """
+        Filter rules where date range overlaps with given range.
+        Only includes rules with specific date ranges (t=1), not global rules (t=0).
+        """
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError as e:
+            raise ValueError("Dates must be in 'YYYY-MM-DD' format") from e
+
+        self.rules = [
+            rule
+            for rule in self.rules
+            if self._date_ranges_overlap(rule, path, start_dt, end_dt)
+        ]
+        return self
+
+    def _date_ranges_overlap(
+        self, rule: dict[str, Any], path: str, start_dt: datetime, end_dt: datetime
+    ) -> bool:
+        """Check if rule's date range overlaps with given date range."""
+
+        rule_start_str = self._get_nested_value(rule, f"lvl.{path}.from")
+        rule_end_str = self._get_nested_value(rule, f"lvl.{path}.to")
+
+        # Only process rules with complete date ranges
+        if rule_start_str is None or rule_end_str is None:
+            return False
+
+        try:
+            rule_start_dt = datetime.strptime(rule_start_str, "%Y-%m-%d")
+            rule_end_dt = datetime.strptime(rule_end_str, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            # Skip rules with invalid date formats or types
+            return False
+
+        return start_dt <= rule_end_dt and rule_start_dt <= end_dt
+
+    def to_list(self) -> list[dict[str, Any]]:
+        """Return the filtered rules as a list."""
+        return self.rules
+
+    def count(self) -> int:
+        """Return count of filtered rules."""
+        return len(self.rules)
 
 
 class DistributorRulesClient:
