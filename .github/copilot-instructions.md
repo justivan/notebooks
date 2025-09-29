@@ -21,7 +21,8 @@ All projects follow a standardized path structure managed by the `ProjectPaths` 
   - `config.py`: Base configuration handling with environment variables
   - `database.py`: Database connection and query management
   - `utils/paths.py`: Workspace-aware path management
-- `/smyrooms/`: Project-specific code for Smyrooms integration
+  - `utils/backup.py`: Project-aware backup utilities for JSON data
+- `/<project>/`: Project-specific code for individual integrations
   - `client/`: API client implementations
   - `notebooks/`: Jupyter notebooks for analysis
   - `data/`: Project data following standard structure
@@ -33,9 +34,9 @@ All projects follow a standardized path structure managed by the `ProjectPaths` 
 The project uses a typed configuration pattern via the `AppConfig` base class in `shared/config.py`:
 
 ```python
-class SmyroomsConfig(AppConfig):
-    DISTRIBUTOR_APIKEY: str
-    DB_CCENTER: str
+class ProjectConfig(AppConfig):
+    API_KEY: str
+    DATABASE_URL: str
 ```
 
 - Environment variables must match class field names
@@ -53,9 +54,9 @@ Database interactions use SQLAlchemy through the `DatabaseProxy` class in `share
 
 ### 3. API Clients
 
-API clients follow a consistent pattern (`smyrooms/client/distributor_client.py`):
+API clients follow a consistent pattern (e.g., `<project>/client/<service>_client.py`):
 - Base `APIClient` class handles authentication and requests
-- Feature-specific classes (e.g., `LevelCloseAPI`, `ProviderFilterAPI`) for endpoint grouping
+- Feature-specific classes (e.g., `DataAPI`, `SearchAPI`) for endpoint grouping
 - Environment-based URL configuration
 
 ### 4. Path Management
@@ -67,7 +68,7 @@ The workspace uses a standardized path management system through the `ProjectPat
 from shared.utils.paths import ProjectPaths
 
 # Initialize project-specific paths
-paths = ProjectPaths("smyrooms")
+paths = ProjectPaths("project_name")
 
 # Create standard data directories
 paths.setup_data_dirs()
@@ -86,6 +87,34 @@ Key Features:
 - Safe path construction: OS-agnostic path handling
 - Directory validation: Automatic creation and existence checks
 - Type safety: Directory types validated at runtime
+
+### 5. Backup Management
+
+The workspace provides a standardized backup system through the `Backup` class in `shared/utils/backup.py`:
+
+```python
+# Example usage in a project
+from shared.utils.backup import Backup
+
+# Create project-aware backup instance
+backup = Backup.for_project("project_name")
+
+# Save data with automatic timestamping
+backup_file = backup.save_to_json(data, "api_response")
+
+# Load the most recent backup
+latest_data = backup.load_latest_backup("api_response")
+
+# Or use custom directory
+custom_backup = Backup.for_directory("/path/to/custom/backups")
+```
+
+Key Features:
+- Project-aware: Integrates with `ProjectPaths` for standardized backup locations
+- Timestamped files: Automatic timestamp prefixes for chronological ordering
+- JSON serialization: Built-in JSON encoding/decoding with error handling
+- Latest file retrieval: Easy access to most recent backups by pattern
+- Flexible initialization: Support for both project-based and custom directory modes
 
 ## Development Workflows
 
@@ -120,14 +149,21 @@ Key Features:
 2. **Path Management**:
    ```python
    from shared.utils.paths import ProjectPaths
-   paths = ProjectPaths("smyrooms")
+   paths = ProjectPaths("project_name")
    paths.setup_data_dirs()  # Creates standard directories
    backup_dir = paths.get_data_dir("backups")
    ```
 
-3. **Configuration Access**:
+3. **Data Backup**:
    ```python
-   from smyrooms.config import Config
+   from shared.utils.backup import Backup
+   backup = Backup.for_project("project_name")
+   backup.save_to_json(api_data, "provider_list")
+   ```
+
+4. **Configuration Access**:
+   ```python
+   from <project>.config import Config
    db_config = Config.database_config
    ```
 
@@ -136,4 +172,4 @@ Key Features:
 - `pyproject.toml`: Project dependencies and tool configurations
 - `shared/config.py`: Base configuration patterns
 - `shared/database.py`: Database access patterns
-- `smyrooms/client/distributor_client.py`: API client patterns
+- `<project>/client/<service>_client.py`: API client patterns
