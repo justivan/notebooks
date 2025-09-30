@@ -299,6 +299,30 @@ class RuleFilter:
 
         return start_dt <= rule_end_dt and rule_start_dt <= end_dt
 
+    def exclude_algorithmic_rules(self) -> Self:
+        """Exclude rules created by algorithms (blacklist and blocked providers)."""
+        algorithmic_descriptions = [
+            "Automatic blacklist.",
+            "Automatic providers blocked algorithm.",
+        ]
+        return self.exclude_field_in("description", algorithmic_descriptions)
+
+    def exclude_automatic(self) -> Self:
+        """Alias for exclude_algorithmic_rules() - shorter method name."""
+        return self.exclude_algorithmic_rules()
+
+    def exclude_obsolete(self) -> Self:
+        """Exclude rules where isObsolete is True."""
+        return self.exclude_field_equals("isObsolete", True)
+
+    def apply_analysis_defaults(self) -> Self:
+        """Apply default exclusions for analysis (algorithmic + obsolete)."""
+        return self.exclude_algorithmic_rules().exclude_obsolete()
+
+    def to_dict(self, key_field: str = "id") -> dict[str, dict[str, Any]]:
+        """Return the filtered rules as a dictionary keyed by specified field."""
+        return {rule[key_field]: rule for rule in self.rules if key_field in rule}
+
     def to_list(self) -> list[dict[str, Any]]:
         """Return the filtered rules as a list."""
         return self.rules
