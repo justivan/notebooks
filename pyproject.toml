@@ -1,0 +1,51 @@
+[project]
+name = "notebooks"
+version = "0.1.0"
+description = "A workspace that groups several notebook projects"
+readme = "README.md"
+requires-python = ">=3.13"
+
+dependencies = [
+    "azure-identity>=1.25.1",
+    "gspread>=6.2.1",
+    "ipykernel>=6.30.1",
+    "msgraph-sdk>=1.46.0",
+    "numpy>=2.3.3",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.3",
+    "psycopg[c]>=3.2.10",
+    "python-dotenv>=1.1.1",
+    "requests>=2.32.5",
+    "ruff>=0.14.0",
+    "sqlalchemy>=2.0.43",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.format]
+line-ending = "auto"
+quote-style = "double"
+indent-style = "space"
+
+
+[tool.ruff.lint]
+select = [
+    "E",   # Pycodestyle errors
+    "W",   # Pycodestyle warnings  
+    "F",   # PyFlakes (F401, F841, etc.)
+    "I",   # Import sorting
+    "UP",  # Pyupgrade
+    "B",   # flake8-bugbear
+    "ARG", # Unused arguments
+    "C90", # McCabe complexity
+]
+ignore = [
+    "S101", # Use of assert
+    "RUF012", # Mutable class attributes
+    "SIM102", # Nested if statements
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["shared", "sandbox", "smyrooms", "utils"]
