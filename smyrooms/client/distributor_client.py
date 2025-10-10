@@ -89,6 +89,19 @@ class ProviderFilterAPI:
         return self.client._request("GET", endpoint)
 
 
+class AgencyRulesAPI:
+    def __init__(self, client: APIClient):
+        self.client = client
+
+    def get_agency_rules(self) -> dict[str, Any]:
+        """Returns all rules for agencies."""
+        endpoint = (
+            f"api/organizations/{self.client.organization_id}/"
+            f"agencies/products/{self.client.product_id}/rules"
+        )
+        return self.client._request("GET", endpoint)
+
+
 class ClientGroupAPI:
     def __init__(self, client: APIClient):
         self.client = client
@@ -343,6 +356,7 @@ class DistributorRulesClient:
 
         self.level_closes = LevelCloseAPI(self._client)
         self.provider_filters = ProviderFilterAPI(self._client)
+        self.agency_rules = AgencyRulesAPI(self._client)
 
 
 class DistributorMastersClient:
